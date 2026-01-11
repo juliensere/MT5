@@ -29,8 +29,12 @@ services:
       - ./client/js:/usr/src/app/client/js:ro
       - ./client/img:/usr/src/app/client/img:ro
 
-      # Chansons - lecture/écriture pour ajouter des chansons facilement
-      - ./client/multitrack:/usr/src/app/client/multitrack
+      # Chansons - utilise le même volume nommé que la production
+      # Permet de partager les chansons entre dev et prod
+      # Pour utiliser le répertoire local à la place, commentez la ligne ci-dessous
+      # et décommentez celle d'après
+      - mt5-multitrack-data:/usr/src/app/client/multitrack
+      # - ./client/multitrack:/usr/src/app/client/multitrack
 
       # Exclure node_modules pour éviter les conflits
       - /usr/src/app/node_modules

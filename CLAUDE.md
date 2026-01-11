@@ -252,6 +252,13 @@ http://localhost:3000
 - Image de base : `node:19.0-slim`
 - Port exposé : 3000
 - Mode production : `npm ci --only=production`
+- Entrypoint : `docker-entrypoint.sh` (initialise le volume multitrack)
+
+**Volume Docker nommé :**
+- `mt5-multitrack-data` : Stockage persistant des chansons multitrack
+- Initialisation automatique avec chansons de démonstration au premier démarrage
+- Indépendant du code source pour faciliter backups et migrations
+- Meilleure performance que les bind mounts sur Windows/Mac
 
 ### Variables d'environnement
 
@@ -265,10 +272,21 @@ http://localhost:3000
 TRACKS_PATH = './client/multitrack'
 ```
 
-Pour ajouter des chansons :
+**Avec Docker :**
+Les chansons sont stockées dans le volume Docker `mt5-multitrack-data`. Pour ajouter des chansons :
+```bash
+# Copier un répertoire de chanson complet
+docker cp ~/music/MaChanson mt5-multitrack:/usr/src/app/client/multitrack/
+
+# Rafraîchir le navigateur - détection automatique
+```
+
+**Sans Docker :**
 1. Créer un nouveau répertoire dans `client/multitrack/`
 2. Ajouter les fichiers audio des pistes (MP3, OGG, WAV, M4A)
 3. Aucune configuration supplémentaire nécessaire - détection automatique
+
+Voir `MULTITRACK.md` pour un guide complet d'ajout de chansons.
 
 ## Dépendances
 

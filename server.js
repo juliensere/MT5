@@ -32,9 +32,24 @@ if (PORT == 8009) {
 app.use(express.static(path.resolve(__dirname, "client")));
 
 // launch the http server on given port
-server.listen(PORT || 3000, addrIP || "0.0.0.0", () => {
+server.listen(PORT || 3000, addrIP || "0.0.0.0", async () => {
   const addr = server.address();
   console.log("MT5 server listening at", addr.address + ":" + addr.port);
+
+  // Log the number of multitrack songs found
+  try {
+    const trackList = await getTracks();
+    if (trackList && trackList.length > 0) {
+      console.log(`Found ${trackList.length} multitrack song(s) in ${TRACKS_PATH}`);
+      console.log("Available songs:", trackList.join(", "));
+    } else {
+      console.log(`No multitrack songs found in ${TRACKS_PATH}`);
+      console.log("You can add songs by copying directories with audio files to this location.");
+    }
+  } catch (error) {
+    console.warn(`Warning: Could not scan multitrack directory (${TRACKS_PATH}):`, error.message);
+    console.log("The directory will be created automatically when needed.");
+  }
 });
 
 // routing

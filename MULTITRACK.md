@@ -50,7 +50,48 @@ Utilisez des noms clairs et descriptifs :
 
 ## Ajouter une nouvelle chanson
 
-### Méthode 1 : Ajout direct dans le répertoire
+### Avec Docker (Volume Docker nommé)
+
+MT5 utilise un **volume Docker nommé** pour stocker les chansons. Voici comment ajouter des chansons :
+
+#### Méthode 1 : Copier un répertoire complet (Recommandé)
+
+```bash
+# Copier un répertoire de chanson complet vers le volume Docker
+docker cp ~/music/MaNouvelleChanson mt5-multitrack:/usr/src/app/client/multitrack/
+
+# Rafraîchir le navigateur - la chanson apparaît immédiatement
+# Pas besoin de redémarrer le container
+```
+
+#### Méthode 2 : Créer et ajouter des fichiers un par un
+
+```bash
+# 1. Créer le répertoire dans le container
+docker compose exec mt5-multitrack mkdir -p /usr/src/app/client/multitrack/MaNouvelleChanson
+
+# 2. Copier les fichiers audio
+docker cp ~/music/01_Kick.mp3 mt5-multitrack:/usr/src/app/client/multitrack/MaNouvelleChanson/
+docker cp ~/music/02_Snare.mp3 mt5-multitrack:/usr/src/app/client/multitrack/MaNouvelleChanson/
+# ... répéter pour chaque fichier
+
+# 3. Rafraîchir le navigateur
+```
+
+#### Méthode 3 : Avec un conteneur temporaire
+
+```bash
+# Utile si le container MT5 n'est pas en cours d'exécution
+docker run --rm \
+  -v mt5-multitrack-data:/data \
+  -v ~/music/MaNouvelleChanson:/source:ro \
+  alpine cp -r /source /data/
+
+# Démarrer ou rafraîchir
+docker compose up -d
+```
+
+### Sans Docker (Installation locale)
 
 ```bash
 # 1. Créer le répertoire de la chanson
@@ -62,31 +103,8 @@ cp ~/music/stems/*.mp3 client/multitrack/MaNouvelleChanson/
 # 3. Vérifier que les fichiers sont bien présents
 ls -lh client/multitrack/MaNouvelleChanson/
 
-# 4. Rafraîchir le navigateur ou redémarrer l'application
-```
-
-### Méthode 2 : Avec Docker en cours d'exécution
-
-```bash
-# 1. Créer le répertoire localement
-mkdir -p client/multitrack/MaNouvelleChanson
-
-# 2. Copier les fichiers
-cp ~/music/stems/*.mp3 client/multitrack/MaNouvelleChanson/
-
-# 3. Le volume est monté, donc les fichiers sont immédiatement disponibles
-# Juste rafraîchir le navigateur ou redémarrer le container
-docker compose restart
-```
-
-### Méthode 3 : Copie directe dans le container
-
-```bash
-# Copier un répertoire complet dans le container
-docker cp ~/music/MaNouvelleChanson mt5-multitrack:/usr/src/app/client/multitrack/
-
-# Redémarrer le container
-docker compose restart
+# 4. Rafraîchir le navigateur
+# Si le serveur est lancé, la chanson apparaît automatiquement
 ```
 
 ## Préparer des fichiers multitrack
@@ -147,6 +165,18 @@ Sinon, les pistes ne seront pas synchronisées lors de la lecture.
 
 ## Supprimer une chanson
 
+### Avec Docker
+
+```bash
+# Supprimer une chanson du volume Docker
+docker compose exec mt5-multitrack rm -rf /usr/src/app/client/multitrack/NomDeLaChanson
+
+# Rafraîchir le navigateur
+# La chanson disparaît automatiquement de la liste
+```
+
+### Sans Docker
+
 ```bash
 # Supprimer le répertoire complet
 rm -rf client/multitrack/NomDeLaChanson/
@@ -156,6 +186,28 @@ rm -rf client/multitrack/NomDeLaChanson/
 ```
 
 ## Vérification
+
+### Lister les chansons disponibles
+
+#### Avec Docker
+
+```bash
+# Lister toutes les chansons dans le volume
+docker compose exec mt5-multitrack ls -la /usr/src/app/client/multitrack
+
+# Ou depuis l'API
+curl http://localhost:3000/track
+```
+
+#### Sans Docker
+
+```bash
+# Lister les chansons
+ls -la client/multitrack/
+
+# Ou via l'API si le serveur tourne
+curl http://localhost:3000/track
+```
 
 ### Tester localement (sans Docker)
 

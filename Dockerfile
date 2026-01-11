@@ -15,4 +15,16 @@ RUN npm ci --only=production
 # Bundle app source
 COPY . .
 
+# Copy demo songs to a backup location for volume initialization
+# This allows the entrypoint to populate an empty volume with demo content
+RUN cp -r client/multitrack .multitrack-demo
+
+# Copy and setup entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Use entrypoint to initialize multitrack volume if empty
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+# Default command
 CMD [ "node", "server.js" ]

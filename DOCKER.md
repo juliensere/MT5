@@ -101,25 +101,43 @@ docker compose logs --tail=100
 
 ## Volumes
 
-### Volume des chansons (Production et Développement)
+### Volume des chansons multitrack (Docker Named Volume)
 
-Le répertoire `client/multitrack` est monté en volume, ce qui permet :
-- **Ajouter de nouvelles chansons** sans rebuild de l'image
-- **Modifier des chansons existantes** à chaud
-- **Persister les chansons** même si le container est supprimé
+MT5 utilise un **volume Docker nommé** (`mt5-multitrack-data`) pour stocker les chansons multitrack. Ce système offre plusieurs avantages :
+
+- **Indépendance du code source** : Les chansons sont séparées de l'application
+- **Persistance garantie** : Les données survivent aux suppressions de containers
+- **Meilleure portabilité** : Facile à sauvegarder/restaurer avec les commandes Docker
+- **Performance optimale** : Meilleures performances que les bind mounts sur Windows/Mac
+- **Initialisation automatique** : Au premier démarrage, le volume est automatiquement peuplé avec les chansons de démonstration
+
+#### Initialisation automatique
+
+Au premier lancement, si le volume est vide, l'entrypoint Docker copie automatiquement les chansons de démonstration :
 
 ```bash
-# Ajouter une nouvelle chanson
-# 1. Créer un dossier dans client/multitrack/
-mkdir -p client/multitrack/MaNouvelleChanson
+# Premier démarrage
+docker compose up -d
 
-# 2. Copier les fichiers audio (MP3, OGG, WAV, M4A)
-cp ~/music/*.mp3 client/multitrack/MaNouvelleChanson/
+# Logs montrent l'initialisation :
+# MT5 Docker Entrypoint - Initialisation...
+# Le volume multitrack est vide.
+# Initialisation avec les chansons de démonstration...
+# ✓ Chansons de démonstration copiées avec succès.
+#   Nombre de chansons: 8
+```
 
-# 3. Redémarrer le container (ou juste rafraîchir le navigateur)
-docker compose restart
+#### Ajouter une nouvelle chanson dans le volume
 
-# La nouvelle chanson apparaît automatiquement dans l'interface
+```bash
+# Méthode 1 : Copier depuis l'hôte vers le container
+docker cp ~/music/MaNouvelleChanson mt5-multitrack:/usr/src/app/client/multitrack/
+
+# Méthode 2 : Créer un répertoire temporaire et copier
+docker compose exec mt5-multitrack mkdir -p /usr/src/app/client/multitrack/MaNouvelleChanson
+docker cp ~/music/*.mp3 mt5-multitrack:/usr/src/app/client/multitrack/MaNouvelleChanson/
+
+# Rafraîchir le navigateur - la chanson apparaît immédiatement
 ```
 
 ### Volumes de développement
@@ -136,51 +154,130 @@ En mode développement (avec `compose.dev.yml`), les fichiers source sont monté
 - `./client/js` → `/usr/src/app/client/js`
 - `./client/img` → `/usr/src/app/client/img`
 
-**Chansons (lecture/écriture) :**
-- `./client/multitrack` → `/usr/src/app/client/multitrack`
+**Chansons (volume Docker partagé) :**
+- `mt5-multitrack-data` → `/usr/src/app/client/multitrack` (même volume que production)
+
+Par défaut, le mode développement utilise le **même volume Docker nommé** que la production, permettant de partager les chansons.
+
+**Option : Utiliser le répertoire local en développement**
+
+Si vous préférez utiliser votre répertoire local `./client/multitrack` en développement :
+
+1. Éditez `compose.dev.yml`
+2. Commentez la ligne `- mt5-multitrack-data:/usr/src/app/client/multitrack`
+3. Décommentez la ligne `- ./client/multitrack:/usr/src/app/client/multitrack`
 
 Toute modification des fichiers source sera immédiatement visible après un rafraîchissement du navigateur.
 
-Pour activer le hot-reload en production, décommentez les lignes de volumes dans `compose.yml`.
+### Gestion et backup des volumes Docker
 
-### Gestion et backup des volumes
+#### Inspection du volume
 
-**Sauvegarder les chansons :**
 ```bash
-# Créer une archive des chansons
-tar -czf multitrack-backup-$(date +%Y%m%d).tar.gz client/multitrack/
+# Informations sur le volume
+docker volume inspect mt5-multitrack-data
 
-# Ou utiliser docker cp
-docker cp mt5-multitrack:/usr/src/app/client/multitrack ./multitrack-backup/
-```
+# Lister les fichiers dans le volume
+docker compose exec mt5-multitrack ls -la /usr/src/app/client/multitrack
 
-**Restaurer les chansons :**
-```bash
-# Depuis une archive
-tar -xzf multitrack-backup-20260111.tar.gz
-
-# Ou copier directement dans le container en cours d'exécution
-docker cp ./multitrack-backup/ mt5-multitrack:/usr/src/app/client/
-docker compose restart
-```
-
-**Vérifier l'espace utilisé :**
-```bash
-# Taille du répertoire multitrack
-du -sh client/multitrack/
-
-# Espace utilisé dans le container
+# Vérifier l'espace utilisé
 docker compose exec mt5-multitrack du -sh /usr/src/app/client/multitrack
 ```
 
-**Nettoyer les chansons inutilisées :**
+#### Sauvegarder le volume
+
+**Méthode 1 : Backup complet du volume (recommandé)**
+
+```bash
+# Créer une sauvegarde complète du volume dans une archive
+docker run --rm \
+  -v mt5-multitrack-data:/data \
+  -v $(pwd):/backup \
+  alpine tar czf /backup/mt5-multitrack-backup-$(date +%Y%m%d).tar.gz -C /data .
+
+# Vérifier la sauvegarde
+ls -lh mt5-multitrack-backup-*.tar.gz
+```
+
+**Méthode 2 : Copier depuis le container**
+
+```bash
+# Copier toutes les chansons vers l'hôte
+docker cp mt5-multitrack:/usr/src/app/client/multitrack ./multitrack-backup
+
+# Créer une archive
+tar -czf multitrack-backup-$(date +%Y%m%d).tar.gz multitrack-backup/
+```
+
+#### Restaurer le volume
+
+**Méthode 1 : Restauration complète depuis une archive**
+
+```bash
+# Arrêter le container
+docker compose down
+
+# Restaurer le volume depuis l'archive
+docker run --rm \
+  -v mt5-multitrack-data:/data \
+  -v $(pwd):/backup \
+  alpine sh -c "cd /data && tar xzf /backup/mt5-multitrack-backup-20260111.tar.gz"
+
+# Redémarrer
+docker compose up -d
+```
+
+**Méthode 2 : Copier vers le container en cours**
+
+```bash
+# Copier des chansons dans le container
+docker cp ./multitrack-backup/MaChanson mt5-multitrack:/usr/src/app/client/multitrack/
+
+# Pas besoin de redémarrer, rafraîchir le navigateur suffit
+```
+
+#### Nettoyer les chansons
+
 ```bash
 # Supprimer une chanson spécifique
-rm -rf client/multitrack/NomDeLaChanson/
+docker compose exec mt5-multitrack rm -rf /usr/src/app/client/multitrack/NomDeLaChanson
 
-# Le changement sera visible après rafraîchissement du navigateur
-# Ou redémarrer le container
-docker compose restart
+# Ou depuis l'hôte avec docker cp (plus complexe)
+docker compose exec mt5-multitrack sh -c "cd /usr/src/app/client/multitrack && rm -rf NomDeLaChanson"
+
+# Rafraîchir le navigateur pour voir les changements
+```
+
+#### Réinitialiser le volume (recommencer avec les chansons de démo)
+
+```bash
+# Arrêter et supprimer le container
+docker compose down
+
+# Supprimer le volume
+docker volume rm mt5-multitrack-data
+
+# Redémarrer (le volume sera recréé et initialisé automatiquement)
+docker compose up -d
+```
+
+#### Migrer le volume vers un autre serveur
+
+```bash
+# Sur le serveur source
+docker run --rm \
+  -v mt5-multitrack-data:/data \
+  alpine tar czf - -C /data . > mt5-data.tar.gz
+
+# Transférer le fichier vers le serveur destination
+scp mt5-data.tar.gz user@destination:/path/
+
+# Sur le serveur destination
+docker volume create mt5-multitrack-data
+docker run --rm \
+  -v mt5-multitrack-data:/data \
+  -v /path:/backup \
+  alpine tar xzf /backup/mt5-data.tar.gz -C /data
 ```
 
 ## Commandes utiles

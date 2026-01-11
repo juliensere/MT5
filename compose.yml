@@ -22,8 +22,11 @@ services:
 
     # Volumes
     volumes:
-      # Volume pour les chansons - permet d'ajouter/modifier des chansons sans rebuild
-      - ./client/multitrack:/usr/src/app/client/multitrack
+      # Volume Docker nommé pour les chansons multitrack
+      # Persiste les données indépendamment du code source
+      # Au premier démarrage, sera automatiquement initialisé avec les chansons de démo
+      - mt5-multitrack-data:/usr/src/app/client/multitrack
+
       # Volumes pour le développement (commentés par défaut)
       # Décommenter pour le développement avec hot-reload
       # - ./server.js:/usr/src/app/server.js:ro
@@ -65,3 +68,11 @@ services:
       - "com.mt5.description=MT5 Multitrack Audio Player"
       - "com.mt5.version=1.0"
       - "com.mt5.maintainer=MT5 Team"
+
+# Volumes persistants
+volumes:
+  mt5-multitrack-data:
+    driver: local
+    labels:
+      - "com.mt5.description=Multitrack songs storage"
+      - "com.mt5.type=data"
