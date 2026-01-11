@@ -35,7 +35,7 @@ Docker quick usage (no installation required)
 -----------
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 I will try to complete this documentation, do not hesitate to contact me at micbuffa at gmail dot com.

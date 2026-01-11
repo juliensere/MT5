@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  mt5-multitrack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+
+    container_name: mt5-multitrack
+
+    # Port mapping - utilise la variable d'environnement ou 3000 par défaut
+    ports:
+      - "${PORT:-3000}:3000"
+
+    # Variables d'environnement
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - IP=0.0.0.0
+
+    # Volumes
+    volumes:
+      # Volume pour les chansons - permet d'ajouter/modifier des chansons sans rebuild
+      - ./client/multitrack:/usr/src/app/client/multitrack
+      # Volumes pour le développement (commentés par défaut)
+      # Décommenter pour le développement avec hot-reload
+      # - ./server.js:/usr/src/app/server.js:ro
+      # - ./client/css:/usr/src/app/client/css:ro
+      # - ./client/js:/usr/src/app/client/js:ro
+      # - ./client/index.html:/usr/src/app/client/index.html:ro
+      # - ./package.json:/usr/src/app/package.json:ro
+
+    # Health check pour vérifier que le service est opérationnel
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Limites de ressources
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+    # Politique de redémarrage
+    restart: unless-stopped
+
+    # Configuration des logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    # Labels pour documentation et organisation
+    labels:
+      - "com.mt5.description=MT5 Multitrack Audio Player"
+      - "com.mt5.version=1.0"
+      - "com.mt5.maintainer=MT5 Team"

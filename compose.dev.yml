@@ -1,0 +1,62 @@
+version: '3.8'
+
+# Configuration Docker Compose pour le DÉVELOPPEMENT
+# Usage: docker compose -f compose.yml -f compose.dev.yml up
+
+services:
+  mt5-multitrack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+
+    # Variables d'environnement pour développement
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - IP=0.0.0.0
+
+    # Volumes montés pour le hot-reload
+    volumes:
+      # Fichiers serveur
+      - ./server.js:/usr/src/app/server.js:ro
+      - ./package.json:/usr/src/app/package.json:ro
+
+      # Client - fichiers de code
+      - ./client/index.html:/usr/src/app/client/index.html:ro
+      - ./client/css:/usr/src/app/client/css:ro
+      - ./client/js:/usr/src/app/client/js:ro
+      - ./client/img:/usr/src/app/client/img:ro
+
+      # Chansons - lecture/écriture pour ajouter des chansons facilement
+      - ./client/multitrack:/usr/src/app/client/multitrack
+
+      # Exclure node_modules pour éviter les conflits
+      - /usr/src/app/node_modules
+
+    # Health check plus fréquent en dev
+    healthcheck:
+      interval: 15s
+      timeout: 5s
+      retries: 2
+      start_period: 20s
+
+    # Pas de limites strictes en développement
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+
+    # Logs plus verbeux pour le debug
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+    # Labels spécifiques au dev
+    labels:
+      - "com.mt5.environment=development"
+      - "com.mt5.hot-reload=enabled"
